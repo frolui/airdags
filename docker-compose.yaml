@@ -29,6 +29,15 @@ services:
     ports:
       - "6379:6379"
     restart: always
+  
+  airflow-init:
+    image: apache/airflow:2.9.2
+    user: "0:0"
+    entrypoint: /bin/bash
+    command: -lc 'mkdir -p /opt/airflow/data && chown -R ${AIRFLOW_UID}:0 /opt/airflow'
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./data:/opt/airflow/data
 
   airflow-webserver:
     build: .
@@ -36,6 +45,8 @@ services:
     depends_on:
       - postgres
       - redis
+      - airflow-init
+    user: "${AIRFLOW_UID}:0"
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
@@ -43,6 +54,7 @@ services:
       AIRFLOW__WEBSERVER__ENABLE_RATE_LIMIT: "True"
       AIRFLOW__WEBSERVER__RATELIMIT_STORAGE_URI: "redis://redis:6379/0"
       AIRFLOW__WEBSERVER__SECRET_KEY: TSNSAukK7Jmwx5bTH3pt_DzSs-uVvy6zTR9hXypptZM
+      AIRFLOW_UID: "${AIRFLOW_UID}"
     volumes:
       - ./dags:/opt/airflow/dags
       - ./data:/opt/airflow/data
@@ -56,18 +68,22 @@ services:
     depends_on:
       - postgres
       - redis
+      - airflow-init
+    user: "${AIRFLOW_UID}:0"
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       AIRFLOW__WEBSERVER__SECRET_KEY: TSNSAukK7Jmwx5bTH3pt_DzSs-uVvy6zTR9hXypptZM
+      AIRFLOW_UID: "${AIRFLOW_UID}"
     volumes:
       - ./dags:/opt/airflow/dags
       - ./data:/opt/airflow/data
     command: scheduler
+  
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
     environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_CLIENT_PORT: 2181                   
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
